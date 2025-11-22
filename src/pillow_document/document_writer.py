@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
+from pillow_document.font_manager import FontManager
 
 ## TODO: 줄바꿈, 폰트 관리 (font_manager?), 페이지 관리
 
@@ -17,6 +18,7 @@ class DocumentWriter:
     ):
         self.image = Image.new("RGB", (width, height), color=background_color)
         self.draw = ImageDraw.Draw(self.image)
+        self.page = 1
 
         # self.margin : up, right, down, left
         if isinstance(margin, int):
@@ -34,17 +36,15 @@ class DocumentWriter:
         self.cursor_x = self.margin[1]
         self.cursor_y = self.margin[0]
 
-        self._default_font = (
-            Path(
-                r"C:\Users\ailur\Documents\GitHub\pillow-document-writer\src\pillow_document\fonts"
-            )
-            / "Roboto-Regular.ttf"
-        )
+        self._default_font = "Roboto-Regular"
         self._default_font_size = 12
+        self.font_manager = FontManager()
         self._font_cache = {}
 
-        self._font_cache[(str(self._default_font), self._default_font_size)] = (
-            ImageFont.truetype(self._default_font, self._default_font_size)
+        self._font_cache[(self._default_font, self._default_font_size)] = (
+            ImageFont.truetype(
+                self.font_manager.get_font(self._default_font), self._default_font_size
+            )
         )
 
     def write(self, text: str, font: str = None, font_size: int = None):
@@ -53,7 +53,8 @@ class DocumentWriter:
         if font_size is None:
             font_size = self._default_font_size
         font_image = self._font_cache.get(
-            (str(font), font_size), ImageFont.truetype(font, font_size)
+            (font, font_size),
+            ImageFont.truetype(self.font_manager.get_font(font), font_size),
         )
         self.draw.text((self.cursor_x, self.cursor_y), text, "black", font_image)
 
@@ -62,8 +63,14 @@ class DocumentWriter:
         text_height = bbox[3] - bbox[1]
         self.cursor_x += text_width
 
-    def write_line(self, text: str):
-        pass
+    def write_line(self, text: str, font: str = None, font_size: int = None):
+        if font is None:
+            font = self._default_font
+        if font_size is None:
+            font_size = self._default_font_size
+        self.write(text, font, font_size)
+        self.cursor_x = self.margin[1]
+        self.cursor_y += font_size
 
     def save(self, path: os.PathLike):
         self.image.save(path)
