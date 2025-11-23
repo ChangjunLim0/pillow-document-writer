@@ -1,15 +1,20 @@
 import importlib.resources
+import logging
 import os
 import sys
 
 from pathlib import Path
 
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
+
 
 class FontManager:
     SUPPPORTED_FONT = [".ttf", ".otf", ".ttc"]
+    DEFAULT_FONT = "Roboto-Regular"
 
     def __init__(self) -> None:
-        self._fonts = {}
+        self._fonts: dict[str, Path] = {}
         if sys.platform == "darwin":  # macOS
             self.system_font_directories = [
                 "/Library/Fonts",
@@ -28,25 +33,26 @@ class FontManager:
                 os.path.expanduser("~/.local/share/fonts"),
                 os.path.expanduser("~/.fonts"),
             ]
-        self._add_default_font()
+        self._fonts[self.DEFAULT_FONT] = self._get_default_font_path()
 
     @property
     def fonts(self) -> list[str]:
         return list(self._fonts.keys())
 
-    def get_font(self, font_name: str):
+    def get_font(self, font_name: str) -> Path | None:
         return self._fonts.get(font_name)
 
-    def get_system_font(self, font_name: str) -> str:
+    def get_system_font(self, font_name: str) -> Path:
         for directory in self.system_font_directories:
             try:
                 for extension in self.SUPPPORTED_FONT:
                     for path in Path(directory).rglob(f"{font_name}.{extension}"):
-                        return str(path)
+                        return path
             except OSError:
                 continue
-        raise FileNotFoundError
-        ## TODO: log warning message
+        logger.warning(
+            f"Font not found: '{font_name}'. Using default font ({self.DEFAULT_FONT}) instead."
+        )
 
     def add_font(self, font: str):
         font_path = Path(font)
@@ -57,8 +63,8 @@ class FontManager:
             return
         self._fonts[font] = self.get_system_font(font)
 
-    def _add_default_font(self):
+    def _get_default_font_path(self) -> Path:
         with importlib.resources.path(
-            "pillow_document.fonts", "Roboto-Regular.ttf"
+            "pillow_document.fonts", f"{self.DEFAULT_FONT}.ttf"
         ) as font_path:
-            self._fonts["Roboto-Regular"] = font_path
+            return font_path
