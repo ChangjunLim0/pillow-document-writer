@@ -124,7 +124,7 @@ class DocumentWriter:
     ):
         total_length = font_object.getlength(text)
         if total_length <= line_width:
-            return total_length
+            return len(text)
         char_width = font_object.getlength("a")
 
         estimated_line_count = int(line_width / char_width)
@@ -138,7 +138,7 @@ class DocumentWriter:
             return index
         else:
             while index < len(text):
-                current_width = font_object.getlength(text[:index])
+                current_width = font_object.getlength(text[:index+1])
                 if current_width > line_width:
                     break
                 index += 1
@@ -151,7 +151,7 @@ class DocumentWriter:
         remaining_text = text
 
         while remaining_text:
-            index = self._get_index_for_line(text, font_object, line_width)
+            index = self._get_index_for_line(remaining_text, font_object, line_width)
             if index == 0:
                 index = 1
             lines.append(remaining_text[:index])
