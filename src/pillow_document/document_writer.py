@@ -6,7 +6,7 @@ from PIL.ImageFont import ImageFont as PillowFontType
 
 from pillow_document.font_manager import FontManager
 
-## TODO: 페이지 관리
+## TODO: 페이지 관리, 색상관리, 기타 pillow 이미지, header 작성
 
 
 class DocumentWriter:
@@ -53,7 +53,11 @@ class DocumentWriter:
 
     @property
     def line_width(self) -> int:
-        return self.page_width - self.margin[0] - self.margin[2]
+        return self.page_width - self.margin[1] - self.margin[3]
+
+    @property
+    def left_margin(self) -> int:
+        return self.margin[3]
 
     def _get_or_create_font_object(
         self, font: str | None, font_size: int | None
@@ -71,18 +75,36 @@ class DocumentWriter:
     def write(self, text: str, font: str = None, font_size: int = None):
         font_size = font_size or self._default_font_size
         font_object = self._get_or_create_font_object(font, font_size)
+        line_texts = text.split("\n")
+        for line in line_texts[:-1]:
+            self._write_text(line, font_object, "black", line_break=True)
+        last_line = line_texts[-1]
+        self._write_text(last_line, font_object, "black", line_break=False)
+    
+    def write_line(self, text: str, font: str = None, font_size: int = None):
+        font_size = font_size or self._default_font_size
+        font_object = self._get_or_create_font_object(font, font_size)
+        line_texts = text.split("\n")
+        for line in line_texts:
+            self._write_text(line, font_object, "black", line_break=True)
+
+    def _write_text(self, text: str, font_object: PillowFontType, color, line_break: bool = False):
         wrapped_text = self._split_text_lines(text, font_object, self.line_width)
+        line_height = font_object.size
         for line in wrapped_text[:-1]:
-            self.draw.text((self.cursor_x, self.cursor_y), line, "black", font_object)
-            self.cursor_x = self.margin[0]
-            self.cursor_y += font_size
+            self.draw.text((self.cursor_x, self.cursor_y), line, color, font_object)
+            self.cursor_x = self.left_margin
+            self.cursor_y += line_height
 
         last_line = wrapped_text[-1]
-        self.draw.text((self.cursor_x, self.cursor_y), last_line, "black", font_object)
-        bbox = self.draw.textbbox((0, 0), last_line, font=font_object)
-        text_width = bbox[2] - bbox[0]
-        text_height = bbox[3] - bbox[1]
-        self.cursor_x += text_width
+        self.draw.text((self.cursor_x, self.cursor_y), last_line, color, font_object)
+        if line_break:
+            self.cursor_x = self.left_margin
+            self.cursor_y += line_height
+        else:
+            bbox = self.draw.textbbox((0, 0), last_line, font=font_object)
+            text_width = bbox[2] - bbox[0]
+            self.cursor_x += text_width
 
     def _split_text_lines(
         self, text: str, font_object: PillowFontType, line_width: int, mode="word"
@@ -157,16 +179,6 @@ class DocumentWriter:
             lines.append(remaining_text[:index])
             remaining_text = remaining_text[index:]
         return lines
-
-    def write_line(self, text: str, font: str = None, font_size: int = None):
-        font_size = font_size or self._default_font_size
-        font_object = self._get_or_create_font_object(font, font_size)
-        wrapped_text = self._split_text_lines(text, font_object, self.line_width)
-        for line in wrapped_text:
-            self.draw.text((self.cursor_x, self.cursor_y), line, "black", font_object)
-            self.cursor_x = self.margin[0]
-            self.cursor_y += font_size
-        self.cursor_x = self.margin[1]
 
     def save(self, path: os.PathLike):
         self.image.save(path)
