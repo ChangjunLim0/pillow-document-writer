@@ -3,6 +3,7 @@ import logging
 import os
 import sys
 
+from fontTools.ttLib import TTFont
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -15,6 +16,7 @@ class FontManager:
 
     def __init__(self) -> None:
         self._fonts: dict[str, Path] = {}
+        self._supported_codepoints: dict[str, set] = {}
         if sys.platform == "darwin":  # macOS
             self.system_font_directories = [
                 "/Library/Fonts",
@@ -33,7 +35,11 @@ class FontManager:
                 os.path.expanduser("~/.local/share/fonts"),
                 os.path.expanduser("~/.fonts"),
             ]
-        self._fonts[self.DEFAULT_FONT] = self._get_default_font_path()
+        default_font_path = self._get_default_font_path()
+        self._fonts[self.DEFAULT_FONT] = default_font_path
+        self._supported_codepoints[self.DEFAULT_FONT] = self._get_supported_characters(
+            default_font_path
+        )
 
     @property
     def fonts(self) -> list[str]:
@@ -58,6 +64,9 @@ class FontManager:
         font_path = Path(font)
         if font_path.exists():
             self._fonts[font_path.stem] = font_path
+            self._supported_codepoints[font_path.stem] = self._get_supported_characters(
+                font_path
+            )
             return
         if font in self._fonts:
             return
@@ -68,3 +77,21 @@ class FontManager:
             "pillow_document.fonts", f"{self.DEFAULT_FONT}.ttf"
         ) as font_path:
             return font_path
+
+    @classmethod
+    def _get_supported_characters(cls, font_path: Path) -> set[int]:
+        font = TTFont(str(font_path))
+        supported_codepoints = set()
+        for table in font["cmap"].tables:
+            supported_codepoints.update(table.cmap.keys())
+        return supported_codepoints
+
+    def get_unsupported_chars(self, font: str, text: str) -> set[str]:
+        supported_codepoints = self._supported_codepoints[font]
+        unsupported_chars = set()
+        for char in text:
+            codepoint = ord(char)
+            if codepoint not in supported_codepoints:
+                unsupported_chars.add(char)
+        unsupported_chars.discard("\n")
+        return unsupported_chars

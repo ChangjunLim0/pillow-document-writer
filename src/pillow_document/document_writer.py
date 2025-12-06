@@ -1,3 +1,4 @@
+import logging
 import os
 
 from pathlib import Path
@@ -7,6 +8,14 @@ from PIL.ImageFont import ImageFont as PillowFontType
 from pillow_document.font_manager import FontManager
 
 ## TODO: 색상관리, 기타 pillow 이미지, header 작성
+
+logger = logging.getLogger(__name__)
+handler = logging.StreamHandler()
+handler.setLevel(logging.WARNING)
+formatter = logging.Formatter("%(levelname)s:%(name)s:%(message)s")
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+logger.setLevel(logging.WARNING)
 
 
 class DocumentWriter:
@@ -91,6 +100,8 @@ class DocumentWriter:
 
     def write(self, text: str, font: str = None, font_size: int = None):
         font_size = font_size or self._default_font_size
+        font = font or self._default_font
+        self._check_if_font_supports(font, text)
         font_object = self._get_or_create_font_object(font, font_size)
         line_texts = text.split("\n")
         for line in line_texts[:-1]:
@@ -100,10 +111,19 @@ class DocumentWriter:
 
     def write_line(self, text: str, font: str = None, font_size: int = None):
         font_size = font_size or self._default_font_size
+        font = font or self._default_font
+        self._check_if_font_supports(font, text)
         font_object = self._get_or_create_font_object(font, font_size)
         line_texts = text.split("\n")
         for line in line_texts:
             self._write_text(line, font_object, "black", line_break=True)
+
+    def _check_if_font_supports(self, font: str, text: str):
+        unsupported_chars = self.font_manager.get_unsupported_chars(font, text)
+        if len(unsupported_chars) > 0:
+            logger.warning(
+                f"'{font}' does not support {', '.join(list(unsupported_chars))}"
+            )
 
     def _write_text(
         self, text: str, font_object: PillowFontType, color, line_break: bool = False
