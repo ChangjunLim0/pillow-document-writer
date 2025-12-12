@@ -48,6 +48,38 @@ class FontManager:
     def get_font(self, font_name: str) -> Path | None:
         return self._fonts.get(font_name)
 
+    def ensure_font(self, font: str) -> str:
+        """Return resolved_name. Accepts font name or font file path.
+        - If not found or unsupported, fall back to DEFAULT_FONT with a warning.
+        """
+        is_file_path = any([font.endswith(ext) for ext in self.SUPPPORTED_FONT])
+        if is_file_path:
+            font_path = Path(font)
+            if not font_path.exists():
+                logger.warning(
+                    f"Font file not found: '{font}'. Falling back to default font '{self.DEFAULT_FONT}'.",
+                )
+                return self.DEFAULT_FONT
+            name = font_path.stem
+            self._register_font(name, font_path)
+            return name
+
+        if font in self._fonts:
+            return font
+        self._register_font(name, font_path)
+        system_path = self.get_system_font(font)
+        if system_path:
+            self._register_font(font, system_path)
+            return font
+        logger.warning(
+            f"Font not found: '{font}'. Falling back to default font '{self.DEFAULT_FONT}'.",
+        )
+        return self.DEFAULT_FONT
+
+    def _register_font(self, name: str, path: Path):
+        self._fonts[name] = path
+        self._supported_codepoints[name] = self._get_supported_characters(path)
+
     def get_system_font(self, font_name: str) -> Path:
         for directory in self.system_font_directories:
             try:

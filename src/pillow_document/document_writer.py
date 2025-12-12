@@ -7,15 +7,10 @@ from PIL.ImageFont import ImageFont as PillowFontType
 
 from pillow_document.font_manager import FontManager
 
-## TODO: 색상관리, 기타 pillow 이미지, header 작성
+## TODO: 기타 pillow 이미지, header 작성
 
 logger = logging.getLogger(__name__)
-handler = logging.StreamHandler()
-handler.setLevel(logging.WARNING)
-formatter = logging.Formatter("%(levelname)s:%(name)s:%(message)s")
-handler.setFormatter(formatter)
-logger.addHandler(handler)
-logger.setLevel(logging.WARNING)
+logger.addHandler(logging.NullHandler())
 
 
 class DocumentWriter:
@@ -70,11 +65,11 @@ class DocumentWriter:
     def left_margin(self) -> int:
         return self.margin[3]
 
-    def _get_or_create_font_object(
-        self, font: str | None, font_size: int | None
-    ) -> PillowFontType:
-        font = font or self._default_font
-        font_size = font_size or self._default_font_size
+    def set_default_font(self, font: str):
+        font = self.font_manager.ensure_font(font)
+        self._default_font = font
+
+    def _get_or_create_font_object(self, font: str, font_size: int) -> PillowFontType:
         font_object = self._font_object_cache.get((font, font_size))
         if font_object is None:
             font_object = ImageFont.truetype(
@@ -108,6 +103,7 @@ class DocumentWriter:
     ):
         font_size = font_size or self._default_font_size
         font = font or self._default_font
+        font = self.font_manager.ensure_font(font)
         initial_cursor_x = self.cursor_x
         initial_cursor_y = self.cursor_y
         self._check_if_font_supports(font, text)
@@ -130,6 +126,7 @@ class DocumentWriter:
     ):
         font_size = font_size or self._default_font_size
         font = font or self._default_font
+        font = self.font_manager.ensure_font(font)
         initial_page = self.page
         initial_cursor_y = self.cursor_y
         self._check_if_font_supports(font, text)

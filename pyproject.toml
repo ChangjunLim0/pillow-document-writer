@@ -1,17 +1,31 @@
 [project]
-name = "pillow-document-writer"
-version = "0.1.0"
-description = "Python wrapper for Pillow (PIL) to create text-heavy images"
 authors = [
   { name = "Changjun Lim", email = "changjun.lim0@gmail.com" }
 ]
-readme = "README.md"
-requires-python = ">=3.10"
-license = { file = "LICENSE" }
+classifiers=[
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Operating System :: OS Independent",
+    "Topic :: Multimedia :: Graphics"
+]
 dependencies = [
   "Pillow>=9.2.0",
   "fonttools>=4.0.0"
 ]
+description = "Python wrapper for Pillow (PIL) to create text-heavy images"
+license = "MIT"
+license-files = [ "LICENSE" ]
+name = "pillow-document-writer"
+readme = "README.md"
+requires-python = ">=3.10"
+version = "0.1.0"
+urls.Source = "https://github.com/ChangjunLim0/pillow-document-writer"
 
 [tool.setuptools.packages.find]
 where = ["src"]
