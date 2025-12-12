@@ -86,12 +86,13 @@ class FontManager:
             supported_codepoints.update(table.cmap.keys())
         return supported_codepoints
 
-    def get_unsupported_chars(self, font: str, text: str) -> set[str]:
+    def get_unsupported_chars(self, font: str, text: str) -> list[str]:
         supported_codepoints = self._supported_codepoints[font]
-        unsupported_chars = set()
+        unsupported_chars = list()
         for char in text:
+            if char == "\n":
+                continue
             codepoint = ord(char)
             if codepoint not in supported_codepoints:
-                unsupported_chars.add(char)
-        unsupported_chars.discard("\n")
+                unsupported_chars.append(char)
         return unsupported_chars
