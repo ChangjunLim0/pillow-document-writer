@@ -92,18 +92,6 @@ class FontManager:
             f"Font not found: '{font_name}'. Using default font ({self.DEFAULT_FONT}) instead."
         )
 
-    def add_font(self, font: str):
-        font_path = Path(font)
-        if font_path.exists():
-            self._fonts[font_path.stem] = font_path
-            self._supported_codepoints[font_path.stem] = self._get_supported_characters(
-                font_path
-            )
-            return
-        if font in self._fonts:
-            return
-        self._fonts[font] = self.get_system_font(font)
-
     def _get_default_font_path(self) -> Path:
         with importlib.resources.path(
             "pillow_document.fonts", f"{self.DEFAULT_FONT}.ttf"
