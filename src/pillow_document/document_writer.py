@@ -98,25 +98,47 @@ class DocumentWriter:
         if self.cursor_y + line_height > self.page_height - self.margin[2]:
             self._go_to_next_page()
 
-    def write(self, text: str, font: str = None, font_size: int = None):
+    def write(
+        self,
+        text: str,
+        font: str = None,
+        font_size: int = None,
+        color="black",
+        min_width: int = 0,
+    ):
         font_size = font_size or self._default_font_size
         font = font or self._default_font
+        initial_cursor_x = self.cursor_x
+        initial_cursor_y = self.cursor_y
         self._check_if_font_supports(font, text)
         font_object = self._get_or_create_font_object(font, font_size)
         line_texts = text.split("\n")
         for line in line_texts[:-1]:
-            self._write_text(line, font_object, "black", line_break=True)
+            self._write_text(line, font_object, color, line_break=True)
         last_line = line_texts[-1]
-        self._write_text(last_line, font_object, "black", line_break=False)
+        self._write_text(last_line, font_object, color, line_break=False)
+        if self.cursor_y == initial_cursor_y:
+            self.cursor_x = max(self.cursor_x, initial_cursor_x + min_width)
 
-    def write_line(self, text: str, font: str = None, font_size: int = None):
+    def write_line(
+        self,
+        text: str,
+        font: str = None,
+        font_size: int = None,
+        color="black",
+        min_height: int = 0,
+    ):
         font_size = font_size or self._default_font_size
         font = font or self._default_font
+        initial_page = self.page
+        initial_cursor_y = self.cursor_y
         self._check_if_font_supports(font, text)
         font_object = self._get_or_create_font_object(font, font_size)
         line_texts = text.split("\n")
         for line in line_texts:
-            self._write_text(line, font_object, "black", line_break=True)
+            self._write_text(line, font_object, color, line_break=True)
+        if initial_page == self.page:
+            self.cursor_y = max(self.cursor_y, initial_cursor_y + min_height)
 
     def _check_if_font_supports(self, font: str, text: str):
         unsupported_chars = self.font_manager.get_unsupported_chars(font, text)
