@@ -21,23 +21,12 @@ class DocumentWriter:
         margin: int | tuple[int] = 20,
         background_color="white",
     ):
-        self.current_image = Image.new("RGB", (width, height), color=background_color)
-        self.draw = ImageDraw.Draw(self.current_image)
+        self.current_canvas = Image.new("RGB", (width, height), color=background_color)
+        self.draw = ImageDraw.Draw(self.current_canvas)
         self.page = 1
-        self.images = [self.current_image]
+        self.images = [self.current_canvas]
 
-        # self.margin : up, right, down, left
-        if isinstance(margin, int):
-            self.margin = (margin, margin, margin, margin)
-        elif isinstance(margin, tuple):
-            if len(margin) == 2:
-                self.margin = (margin[0], margin[1], margin[0], margin[1])
-            elif len(margin) == 4:
-                self.margin = margin
-            else:
-                raise ValueError
-        else:
-            raise ValueError
+        self.margin = self.get_margin_trbl(margin)
 
         self.page_width = width
         self.page_height = height
@@ -56,6 +45,25 @@ class DocumentWriter:
                 self.font_manager.get_font(self._default_font), self._default_font_size
             )
         )
+
+    @classmethod
+    def get_margin_trbl(cls, margin: int | tuple[int] | None) -> tuple[int]:
+        # (top, right, bottom, left)
+        if margin is None:
+            return (0, 0, 0, 0)
+        if isinstance(margin, int):
+            return (margin, margin, margin, margin)
+        elif isinstance(margin, tuple):
+            if len(margin) == 1:
+                return (margin[0], margin[0], margin[0], margin[0])
+            if len(margin) == 2:
+                return (margin[0], margin[1], margin[0], margin[1])
+            elif len(margin) == 4:
+                return margin
+            else:
+                raise ValueError
+        else:
+            raise ValueError
 
     @property
     def line_width(self) -> int:
@@ -79,12 +87,12 @@ class DocumentWriter:
         return font_object
 
     def _go_to_next_page(self):
-        self.current_image = Image.new(
+        self.current_canvas = Image.new(
             "RGB", (self.page_width, self.page_height), color=self.background_color
         )
-        self.draw = ImageDraw.Draw(self.current_image)
+        self.draw = ImageDraw.Draw(self.current_canvas)
         self.page += 1
-        self.images.append(self.current_image)
+        self.images.append(self.current_canvas)
 
         self.cursor_x = self.left_margin
         self.cursor_y = self.margin[0]
@@ -273,7 +281,7 @@ class DocumentWriter:
     def save(self, path: os.PathLike):
         file_path = Path(path)
         if len(self.images) == 1:
-            self.current_image.save(file_path)
+            self.current_canvas.save(file_path)
         else:
             for i, image in enumerate(self.images):
                 image.save(file_path.with_stem(file_path.stem + f"_{i+1}"))
