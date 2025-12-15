@@ -10,6 +10,11 @@ Python wrapper for Pillow (PIL) to create text-heavy images like a word processo
 pip install pillow-document-writer
 ```
 
+For dev mode
+```bash
+pip install -e ".[dev]"
+```
+
 ## Usage
 
 ```python
@@ -17,6 +22,12 @@ from pillow_document import DocumentWriter
 
 doc = DocumentWriter()
 doc.save("output.png")
+```
+
+## Examples
+
+```bash
+python examples/tale.py
 ```
 
 ## Using Custom Fonts

@@ -7,7 +7,7 @@ from PIL.ImageFont import ImageFont as PillowFontType
 
 from pillow_document.font_manager import FontManager
 
-## TODO: 기타 pillow 이미지, header 작성
+## TODO: align, header/footer 작성
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
@@ -277,6 +277,46 @@ class DocumentWriter:
             remaining_text = remaining_text[index:]
             current_line_width = line_width
         return lines
+
+    def rectangle(
+        self, width: int, height: int, color="black", line_break: bool = True
+    ):
+        xy = [
+            (self.cursor_x, self.cursor_y),
+            (self.cursor_x + width, self.cursor_y + height),
+        ]
+        self.draw.rectangle(xy, color)
+        if line_break:
+            self.cursor_y += height
+        else:
+            self.cursor_x += width
+
+    def image(
+        self,
+        image_path: os.PathLike,
+        width: int = None,
+        height: int = None,
+        margin: int | tuple[int] = None,
+        line_break: bool = True,
+    ):
+        if not Path(image_path).exists:
+            logger.warning(f"Image {image_path} does not exists.")
+            return
+        image_margin = self.get_margin_trbl(margin)
+        overlay_image = Image.open(image_path)
+        if height and width:
+            overlay_image = overlay_image.resize((width, height))
+        elif height and not width:
+            resized_width = int(overlay_image.width * height / overlay_image.height)
+            overlay_image = overlay_image.resize((resized_width * height, height))
+        elif not height and width:
+            resized_height = int(overlay_image.height * width / overlay_image.width)
+            overlay_image = overlay_image.resize((width, resized_height))
+        image_xy = (self.cursor_x + image_margin[3], self.cursor_y + image_margin[0])
+        self.current_canvas.paste(overlay_image, image_xy)
+
+        self.cursor_x = self.left_margin
+        self.cursor_y += overlay_image.height + image_margin[0] + image_margin[2]
 
     def save(self, path: os.PathLike):
         file_path = Path(path)
