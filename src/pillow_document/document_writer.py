@@ -147,7 +147,10 @@ class DocumentWriter:
     def _write_text(
         self, text: str, font_object: PillowFontType, color, line_break: bool = False
     ):
-        wrapped_text = self._split_text_lines(text, font_object, self.line_width)
+        remaining_width = max(self.line_width - (self.cursor_x - self.left_margin), 0)
+        wrapped_text = self._split_text_lines(
+            text, font_object, remaining_width, self.line_width
+        )
         line_height = font_object.size
 
         for line in wrapped_text[:-1]:
@@ -168,28 +171,44 @@ class DocumentWriter:
             self.cursor_x += text_width
 
     def _split_text_lines(
-        self, text: str, font_object: PillowFontType, line_width: int, mode="word"
+        self,
+        text: str,
+        font_object: PillowFontType,
+        first_line_width: int,
+        line_width: int,
+        mode="word",
     ) -> list[str]:
+        current_line_width = first_line_width
         space_width = font_object.getlength(" ")
         words = text.split(" ")
         current_line = []
         current_width = 0
         lines = []
+        first_word = words[0]
+        first_word_length = font_object.getlength(first_word)
+        if first_word_length > first_line_width and first_line_width != line_width:
+            lines.append("\n")
+            current_line_width = line_width
         for word in words:
             word_length = font_object.getlength(word)
-            if word_length > line_width:
+            if word_length > current_line_width:
+                if current_line_width != line_width:  # first_line
+                    lines.append("\n")
                 if len(current_line) > 0:
                     lines.append(" ".join(current_line))
                     current_line = []
                     current_width = 0
-                chunks = self._split_text_by_character(word, font_object, line_width)
+                chunks = self._split_text_by_character(
+                    word, font_object, current_line_width, line_width
+                )
                 lines.extend(chunks[:-1])
                 last_chunk = chunks[-1]
                 current_line.append(last_chunk)
                 current_width += font_object.getlength(last_chunk)
+                current_line_width = line_width
                 continue
 
-            if current_width + word_length <= line_width:
+            if current_width + word_length <= current_line_width:
                 if current_width > 0:
                     current_width += space_width
                 current_width += word_length
@@ -198,6 +217,7 @@ class DocumentWriter:
                 lines.append(" ".join(current_line))
                 current_line = [word]
                 current_width = word_length
+                current_line_width = line_width
         if len(current_line) > 0:
             lines.append(" ".join(current_line))
         return lines
@@ -228,17 +248,26 @@ class DocumentWriter:
             return index
 
     def _split_text_by_character(
-        self, text: str, font_object: PillowFontType, line_width: int
+        self,
+        text: str,
+        font_object: PillowFontType,
+        first_line_width: int,
+        line_width: int = None,
     ) -> list[str]:
         lines = []
         remaining_text = text
-
+        if line_width is None:
+            line_width = first_line_width
+        current_line_width = first_line_width
         while remaining_text:
-            index = self._get_index_for_line(remaining_text, font_object, line_width)
+            index = self._get_index_for_line(
+                remaining_text, font_object, current_line_width
+            )
             if index == 0:
                 index = 1
             lines.append(remaining_text[:index])
             remaining_text = remaining_text[index:]
+            current_line_width = line_width
         return lines
 
     def save(self, path: os.PathLike):

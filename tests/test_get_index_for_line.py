@@ -20,28 +20,36 @@ def font_object():
     return ImageFont.truetype(str(font_path), font_size)
 
 
+@pytest.fixture
+def font_object_small():
+    font_manager = FontManager()
+    font_path = font_manager.get_font(font_manager.DEFAULT_FONT)
+    font_size = 20
+    return ImageFont.truetype(str(font_path), font_size)
+
+
 def test_get_index_for_line_hello_world(font_object):
     writer = DocumentWriter(width=200, height=600, margin=40)
     line_width = writer.line_width
-    
-    assert line_width == 120, (
-        f"line_width should be width({writer.page_width}) - margin[0]({writer.margin[0]}) - margin[2]({writer.margin[2]})"
-    )
+
+    assert (
+        line_width == 120
+    ), f"line_width should be width({writer.page_width}) - margin[0]({writer.margin[0]}) - margin[2]({writer.margin[2]})"
     text = "Hello World!"
-    
+
     index = writer._get_index_for_line(text, font_object, line_width)
-    
+
     assert index > 0, "Index should be greater than 0"
     assert index <= len(text), "Index should be less than or equal to text length"
-    
+
     first_line = text[:index]
     first_line_width = font_object.getlength(first_line)
-    assert first_line_width <= line_width, (
-        f"The width of the first line '{first_line}'({first_line_width}) exceeds line_width({line_width})"
-    )
-    
+    assert (
+        first_line_width <= line_width
+    ), f"The width of the first line '{first_line}'({first_line_width}) exceeds line_width({line_width})"
+
     if index < len(text):
-        next_char_width = font_object.getlength(text[:index + 1])
+        next_char_width = font_object.getlength(text[: index + 1])
         assert next_char_width > line_width, (
             f"Adding the next character at index {index} should exceed line_width. "
             f"Width: {next_char_width}, line_width: {line_width}"
@@ -51,25 +59,25 @@ def test_get_index_for_line_hello_world(font_object):
 def test_split_text_by_character_hello_world(font_object):
     """Test that _split_text_by_character() correctly splits 'Hello World!'"""
     writer = DocumentWriter(width=200, height=1000, margin=40)
-    line_width = writer.line_width  # 120
-    
+    line_width = writer.line_width
+
     text = "Hello World!"
     chunks = writer._split_text_by_character(text, font_object, line_width)
-    
+
     for i, chunk in enumerate(chunks):
         chunk_width = font_object.getlength(chunk)
-        assert chunk_width <= line_width, (
-            f"Chunk {i} '{chunk}' width ({chunk_width}) exceeds line_width ({line_width})"
-        )
-    
+        assert (
+            chunk_width <= line_width
+        ), f"Chunk {i} '{chunk}' width ({chunk_width}) exceeds line_width ({line_width})"
+
     combined = "".join(chunks)
-    assert combined == text, (
-        f"Combined chunks '{combined}' do not match original text '{text}'"
-    )
-    
+    assert (
+        combined == text
+    ), f"Combined chunks '{combined}' do not match original text '{text}'"
+
     all_text = "".join(chunks)
     assert "rld!" in all_text, "'rld!' should be present in the text"
-    
+
     for i in range(len(chunks) - 1):
         if chunks[i].endswith("rl") and chunks[i + 1].startswith("d!"):
             pytest.fail(
@@ -81,13 +89,41 @@ def test_split_text_by_character_hello_world(font_object):
 def test_get_index_for_line_edge_cases(font_object):
     writer = DocumentWriter(width=200, height=600, margin=40)
     line_width = writer.line_width
-    
+
     short_text = "Hi"
     index = writer._get_index_for_line(short_text, font_object, line_width)
     assert index == len(short_text), "short text returns the text length"
-    
+
     long_text = "This is a very long text that should be split"
     index = writer._get_index_for_line(long_text, font_object, line_width)
     assert index > 0, "Long text should return an index greater than 0"
     assert index <= len(long_text), "Index should not exceed text length"
 
+
+def test_split_text_by_character_first_line_width(font_object_small):
+    writer = DocumentWriter(width=400, height=400, margin=40)
+    text = "test"
+    first_line_width = 11
+    line_width = 120
+
+    chunks = writer._split_text_by_character(
+        text, font_object_small, first_line_width, line_width
+    )
+
+    assert chunks == ["t", "est"], "The first line: t, the second line: est"
+    assert font_object_small.getlength(chunks[0]) <= first_line_width
+    assert font_object_small.getlength(chunks[1]) <= line_width
+
+
+def test_split_text_lines_first_line_width(font_object_small):
+    writer = DocumentWriter(width=400, height=400, margin=40)
+    text = "test"
+    first_line_width = 11
+    line_width = 120
+
+    lines = writer._split_text_lines(
+        text, font_object_small, first_line_width, line_width
+    )
+
+    assert lines == ["\n", "test"], "The first element should be line break character."
+    assert font_object_small.getlength(lines[1]) <= line_width
