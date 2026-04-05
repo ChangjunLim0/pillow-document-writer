@@ -6,7 +6,7 @@ image_path = script_directory / "assets" / "arctic_fox.jpg"
 
 writer = DocumentWriter(600, 900, margin=40)
 
-writer.write_line("The Artic Fox", font_size=40, color="#445c5b")
+writer.write_line("The Artic Fox", font_size=40, color="#445c5b", align="center")
 
 writer.image(image_path, width=400, margin=20)
 writer.write(

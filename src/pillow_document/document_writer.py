@@ -7,7 +7,7 @@ from PIL.ImageFont import ImageFont as PillowFontType
 
 from pillow_document.font_manager import FontManager
 
-## TODO: align, header/footer 작성
+## TODO: header/footer
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
@@ -18,8 +18,10 @@ class DocumentWriter:
         self,
         width: int,
         height: int,
-        margin: int | tuple[int] = 20,
+        margin: int | tuple[int, ...] = 20,
         background_color="white",
+        auto_page_break: bool = True,
+        line_spacing: float = 1.2,
     ):
         self.current_canvas = Image.new("RGB", (width, height), color=background_color)
         self.draw = ImageDraw.Draw(self.current_canvas)
@@ -31,9 +33,11 @@ class DocumentWriter:
         self.page_width = width
         self.page_height = height
         self.background_color = background_color
+        self.auto_page_break = auto_page_break
+        self.line_spacing = line_spacing
 
         self.cursor_x = self.left_margin
-        self.cursor_y = self.margin[0]
+        self.cursor_y = self.content_top
 
         self._default_font = "Roboto-Regular"
         self._default_font_size = 12
@@ -45,9 +49,10 @@ class DocumentWriter:
                 self.font_manager.get_font(self._default_font), self._default_font_size
             )
         )
+        self._page_number_config = None
 
     @classmethod
-    def get_margin_trbl(cls, margin: int | tuple[int] | None) -> tuple[int]:
+    def get_margin_trbl(cls, margin: int | tuple[int, ...] | None) -> tuple[int, ...]:
         # (top, right, bottom, left)
         if margin is None:
             return (0, 0, 0, 0)
@@ -64,6 +69,14 @@ class DocumentWriter:
                 raise ValueError
         else:
             raise ValueError
+
+    @property
+    def content_top(self) -> int:
+        return self.margin[0]
+
+    @property
+    def content_bottom(self) -> int:
+        return self.page_height - self.margin[2]
 
     @property
     def line_width(self) -> int:
@@ -95,11 +108,20 @@ class DocumentWriter:
         self.images.append(self.current_canvas)
 
         self.cursor_x = self.left_margin
-        self.cursor_y = self.margin[0]
+        self.cursor_y = self.content_top
 
     def _check_and_go_to_next_page(self, line_height: int):
-        if self.cursor_y + line_height > self.page_height - self.margin[2]:
-            self._go_to_next_page()
+        if self.cursor_y + line_height > self.content_bottom:
+            if self.auto_page_break:
+                self._go_to_next_page()
+            else:
+                logger.warning(
+                    f"Content overflows page {self.page}. "
+                    "Set auto_page_break=True to enable automatic pagination."
+                )
+
+    def new_page(self):
+        self._go_to_next_page()
 
     def write(
         self,
@@ -108,6 +130,8 @@ class DocumentWriter:
         font_size: int = None,
         color="black",
         min_width: int = 0,
+        align: str = "left",
+        line_spacing: float = None,
     ):
         font_size = font_size or self._default_font_size
         font = font or self._default_font
@@ -116,11 +140,26 @@ class DocumentWriter:
         initial_cursor_y = self.cursor_y
         self._check_if_font_supports(font, text)
         font_object = self._get_or_create_font_object(font, font_size)
+        line_spacing = line_spacing if line_spacing is not None else self.line_spacing
         line_texts = text.split("\n")
         for line in line_texts[:-1]:
-            self._write_text(line, font_object, color, line_break=True)
+            self._write_text(
+                line,
+                font_object,
+                color,
+                line_break=True,
+                align=align,
+                line_spacing=line_spacing,
+            )
         last_line = line_texts[-1]
-        self._write_text(last_line, font_object, color, line_break=False)
+        self._write_text(
+            last_line,
+            font_object,
+            color,
+            line_break=False,
+            align=align,
+            line_spacing=line_spacing,
+        )
         if self.cursor_y == initial_cursor_y:
             self.cursor_x = max(self.cursor_x, initial_cursor_x + min_width)
 
@@ -131,6 +170,8 @@ class DocumentWriter:
         font_size: int = None,
         color="black",
         min_height: int = 0,
+        align: str = "left",
+        line_spacing: float = None,
     ):
         font_size = font_size or self._default_font_size
         font = font or self._default_font
@@ -139,9 +180,17 @@ class DocumentWriter:
         initial_cursor_y = self.cursor_y
         self._check_if_font_supports(font, text)
         font_object = self._get_or_create_font_object(font, font_size)
+        line_spacing = line_spacing if line_spacing is not None else self.line_spacing
         line_texts = text.split("\n")
         for line in line_texts:
-            self._write_text(line, font_object, color, line_break=True)
+            self._write_text(
+                line,
+                font_object,
+                color,
+                line_break=True,
+                align=align,
+                line_spacing=line_spacing,
+            )
         if initial_page == self.page:
             self.cursor_y = max(self.cursor_y, initial_cursor_y + min_height)
 
@@ -152,28 +201,59 @@ class DocumentWriter:
                 f"'{font}' does not support {', '.join(list(unsupported_chars))}"
             )
 
+    def _get_x_for_align(
+        self, text: str, font_object: PillowFontType, align: str
+    ) -> int:
+        if align == "left":
+            return self.left_margin
+        text_width = int(self.draw.textlength(text, font=font_object))
+        if align == "center":
+            return self.left_margin + (self.line_width - text_width) // 2
+        if align == "right":
+            return self.left_margin + self.line_width - text_width
+        return self.left_margin
+
     def _write_text(
-        self, text: str, font_object: PillowFontType, color, line_break: bool = False
+        self,
+        text: str,
+        font_object: PillowFontType,
+        color,
+        line_break: bool = False,
+        align: str = "left",
+        line_spacing: float = 1.0,
     ):
         remaining_width = max(self.line_width - (self.cursor_x - self.left_margin), 0)
         wrapped_text = self._split_text_lines(
             text, font_object, remaining_width, self.line_width
         )
-        line_height = font_object.size
+        line_height = int(font_object.size * line_spacing)
 
         for line in wrapped_text[:-1]:
             self._check_and_go_to_next_page(line_height)
-            self.draw.text((self.cursor_x, self.cursor_y), line, color, font_object)
+            x = (
+                self._get_x_for_align(line, font_object, align)
+                if align != "left"
+                else self.cursor_x
+            )
+            self.draw.text((x, self.cursor_y), line, color, font_object)
             self.cursor_x = self.left_margin
             self.cursor_y += line_height
 
         last_line = wrapped_text[-1]
         self._check_and_go_to_next_page(line_height)
-        self.draw.text((self.cursor_x, self.cursor_y), last_line, color, font_object)
         if line_break:
+            x = (
+                self._get_x_for_align(last_line, font_object, align)
+                if align != "left"
+                else self.cursor_x
+            )
+            self.draw.text((x, self.cursor_y), last_line, color, font_object)
             self.cursor_x = self.left_margin
             self.cursor_y += line_height
         else:
+            self.draw.text(
+                (self.cursor_x, self.cursor_y), last_line, color, font_object
+            )
             bbox = self.draw.textbbox((0, 0), last_line, font=font_object)
             text_width = bbox[2] - bbox[0]
             self.cursor_x += text_width
@@ -296,10 +376,10 @@ class DocumentWriter:
         image_path: os.PathLike,
         width: int = None,
         height: int = None,
-        margin: int | tuple[int] = None,
+        margin: int | tuple[int, ...] = None,
         line_break: bool = True,
     ):
-        if not Path(image_path).exists:
+        if not Path(image_path).exists():
             logger.warning(f"Image {image_path} does not exists.")
             return
         image_margin = self.get_margin_trbl(margin)
@@ -308,20 +388,81 @@ class DocumentWriter:
             overlay_image = overlay_image.resize((width, height))
         elif height and not width:
             resized_width = int(overlay_image.width * height / overlay_image.height)
-            overlay_image = overlay_image.resize((resized_width * height, height))
+            overlay_image = overlay_image.resize((resized_width, height))
         elif not height and width:
             resized_height = int(overlay_image.height * width / overlay_image.width)
             overlay_image = overlay_image.resize((width, resized_height))
+        self._check_and_go_to_next_page(
+            overlay_image.height + image_margin[0] + image_margin[2]
+        )
         image_xy = (self.cursor_x + image_margin[3], self.cursor_y + image_margin[0])
         self.current_canvas.paste(overlay_image, image_xy)
 
-        self.cursor_x = self.left_margin
-        self.cursor_y += overlay_image.height + image_margin[0] + image_margin[2]
+        if line_break:
+            self.cursor_x = self.left_margin
+            self.cursor_y += overlay_image.height + image_margin[0] + image_margin[2]
+        else:
+            self.cursor_x += overlay_image.width + image_margin[1] + image_margin[3]
+
+    def set_page_number(
+        self,
+        position: str = "bottom-center",
+        format: str = "{page}",
+        font: str = None,
+        font_size: int = None,
+        color="black",
+    ):
+        self._page_number_config = {
+            "position": position,
+            "format": format,
+            "font": font or self._default_font,
+            "font_size": font_size or self._default_font_size,
+            "color": color,
+        }
+
+    def _get_images_with_page_numbers(self) -> list[Image.Image]:
+        if self._page_number_config is None:
+            return self.images
+        cfg = self._page_number_config
+        font_object = self._get_or_create_font_object(cfg["font"], cfg["font_size"])
+        result = []
+        for i, image in enumerate(self.images):
+            copy = image.copy()
+            text = cfg["format"].replace("{page}", str(i + 1))
+            draw = ImageDraw.Draw(copy)
+            bbox = draw.textbbox((0, 0), text, font=font_object)
+            text_width = bbox[2] - bbox[0]
+            text_height = bbox[3] - bbox[1]
+            position = cfg["position"]
+
+            if "left" in position:
+                x = self.margin[3]
+            elif "center" in position:
+                x = (self.page_width - text_width) // 2
+            else:  # right
+                x = self.page_width - self.margin[1] - text_width
+
+            if "top" in position:
+                y = (self.margin[0] - text_height) // 2
+            else:  # bottom
+                y = (
+                    self.page_height
+                    - self.margin[2]
+                    + (self.margin[2] - text_height) // 2
+                )
+
+            x = max(0, min(self.page_width - text_width, x))
+            y = max(0, min(self.page_height - text_height, y))
+
+            draw.text((x, y), text, cfg["color"], font_object)
+            result.append(copy)
+        return result
 
     def save(self, path: os.PathLike):
+        images = self._get_images_with_page_numbers()
         file_path = Path(path)
-        if len(self.images) == 1:
-            self.current_canvas.save(file_path)
+        if len(images) == 1:
+            images[0].save(file_path)
         else:
-            for i, image in enumerate(self.images):
-                image.save(file_path.with_stem(file_path.stem + f"_{i+1}"))
+            for i, image in enumerate(images):
+                image.save(file_path.with_stem(file_path.stem + f"_{i + 1}"))

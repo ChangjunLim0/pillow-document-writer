@@ -7,12 +7,7 @@ debugging: bool
 
 
 def debug(debug_on: bool = True, default_handler: bool = True) -> None:
-    """Turn on/off debugging of DICOM file reading and writing.
-
-    When debugging is on, file location and details about the elements read at
-    that location are logged to the 'pydicom' logger using Python's
-    :mod:`logging`
-    module.
+    """Turn on/off debug logging for pillow-document-writer.
 
     Parameters
     ----------

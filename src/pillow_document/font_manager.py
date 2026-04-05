@@ -66,7 +66,6 @@ class FontManager:
 
         if font in self._fonts:
             return font
-        self._register_font(name, font_path)
         system_path = self.get_system_font(font)
         if system_path:
             self._register_font(font, system_path)

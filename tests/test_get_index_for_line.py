@@ -32,9 +32,9 @@ def test_get_index_for_line_hello_world(font_object):
     writer = DocumentWriter(width=200, height=600, margin=40)
     line_width = writer.line_width
 
-    assert (
-        line_width == 120
-    ), f"line_width should be width({writer.page_width}) - margin[0]({writer.margin[0]}) - margin[2]({writer.margin[2]})"
+    assert line_width == 120, (
+        f"line_width should be width({writer.page_width}) - margin[0]({writer.margin[0]}) - margin[2]({writer.margin[2]})"
+    )
     text = "Hello World!"
 
     index = writer._get_index_for_line(text, font_object, line_width)
@@ -44,9 +44,9 @@ def test_get_index_for_line_hello_world(font_object):
 
     first_line = text[:index]
     first_line_width = font_object.getlength(first_line)
-    assert (
-        first_line_width <= line_width
-    ), f"The width of the first line '{first_line}'({first_line_width}) exceeds line_width({line_width})"
+    assert first_line_width <= line_width, (
+        f"The width of the first line '{first_line}'({first_line_width}) exceeds line_width({line_width})"
+    )
 
     if index < len(text):
         next_char_width = font_object.getlength(text[: index + 1])
@@ -66,14 +66,14 @@ def test_split_text_by_character_hello_world(font_object):
 
     for i, chunk in enumerate(chunks):
         chunk_width = font_object.getlength(chunk)
-        assert (
-            chunk_width <= line_width
-        ), f"Chunk {i} '{chunk}' width ({chunk_width}) exceeds line_width ({line_width})"
+        assert chunk_width <= line_width, (
+            f"Chunk {i} '{chunk}' width ({chunk_width}) exceeds line_width ({line_width})"
+        )
 
     combined = "".join(chunks)
-    assert (
-        combined == text
-    ), f"Combined chunks '{combined}' do not match original text '{text}'"
+    assert combined == text, (
+        f"Combined chunks '{combined}' do not match original text '{text}'"
+    )
 
     all_text = "".join(chunks)
     assert "rld!" in all_text, "'rld!' should be present in the text"
@@ -82,7 +82,7 @@ def test_split_text_by_character_hello_world(font_object):
         if chunks[i].endswith("rl") and chunks[i + 1].startswith("d!"):
             pytest.fail(
                 f"'rld!' was incorrectly split into 'rl' and 'd!'. "
-                f"Chunk {i}: '{chunks[i]}', Chunk {i+1}: '{chunks[i+1]}'"
+                f"Chunk {i}: '{chunks[i]}', Chunk {i + 1}: '{chunks[i + 1]}'"
             )
 
 

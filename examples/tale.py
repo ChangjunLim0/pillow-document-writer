@@ -3,7 +3,8 @@ from pillow_document import DocumentWriter
 writer = DocumentWriter(400, 500, margin=40)
 
 writer.write_line("The Fox and the Grapes", font_size=40)
-writer.rectangle(200, 5)
+writer.rectangle(200, 2)
+writer.write_line("")
 writer.write(
     "A Fox one day spied a beautiful bunch of ripe grapes hanging from a vine trained "
     "along the branches of a tree. The grapes seemed ready to burst with juice, and the "
@@ -16,4 +17,5 @@ writer.write(
     "very scornfully.",
     font_size=18,
 )
+writer.set_page_number()
 writer.save("The fox and the grapes.png")
