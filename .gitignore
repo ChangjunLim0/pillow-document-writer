@@ -23,6 +23,22 @@ share/python-wheels/
 *.egg
 MANIFEST
 
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py.cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+
 # Environments
 .env
 .venv
@@ -31,6 +47,9 @@ venv*/
 ENV/
 env.bak/
 venv.bak/
+
+# Ruff stuff:
+.ruff_cache/
 
 .DS_Store
 
